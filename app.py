@@ -13,7 +13,7 @@ def home():
 def upload():
     global combined
     try:
-        files = request.files.getlist('files[]')
+        files = request.files.getlist('files')
         if not files:
             return jsonify({"error": "파일이 없습니다."}), 400
 
