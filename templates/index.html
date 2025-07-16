@@ -1,16 +1,58 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>엑셀 업로드</title>
+  <title>IR센터 엑셀 업로드</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-  <h2>엑셀 파일 최대 5개 업로드</h2>
-  <input type="file" id="fileInput" multiple>
-  <button onclick="uploadFiles()">업로드</button>
 
-  <pre id="result"></pre>
+<body class="bg-gray-100 h-screen flex items-center justify-center">
+  <div class="bg-white shadow-lg rounded-lg p-10 w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-6 text-center text-blue-600">📊 엑셀 파일 업로드</h1>
+    <form id="upload-form" class="space-y-4">
+      <input type="file" id="file-input" multiple accept=".xlsx,.xls,.csv" 
+             class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none" />
+      <button type="submit" class="w-full bg-blue-500 text-white font-semibold py-2 px-4 rounded hover:bg-blue-600">
+        업로드
+      </button>
+    </form>
+    <div id="result" class="mt-4 text-green-600 font-semibold text-center"></div>
+  </div>
 
-  <script src="/static/main.js"></script>
+<script>
+  const form = document.getElementById("upload-form");
+  const fileInput = document.getElementById("file-input");
+  const resultDiv = document.getElementById("result");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault(); // 새로고침 방지
+
+    const files = fileInput.files;
+    if (files.length === 0) {
+      alert("업로드할 파일을 선택하세요!");
+      return;
+    }
+
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+      formData.append("files", files[i]); // 여러 파일 추가
+    }
+
+    // ⭐ fetch로 서버에 보내기 ⭐
+    try {
+      const response = await fetch('http://localhost:5000/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      resultDiv.innerText = `✅ ${result.message}\n업로드된 파일: ${result.files.join(', ')}`;
+    } catch (error) {
+      resultDiv.innerText = "❌ 서버 연결 실패: " + error.message;
+    }
+  });
+</script>
+
 </body>
+
 </html>
