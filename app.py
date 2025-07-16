@@ -18,5 +18,4 @@ def upload():
     return jsonify(combined.head(10).to_dict(orient="records"))
 
 if __name__ == "__main__":
-    print("flask 서버 시작 중...")
     app.run(debug=True)
