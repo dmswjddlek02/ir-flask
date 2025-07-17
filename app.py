@@ -5,9 +5,18 @@ combined = None  # 전역 선언
 
 app = Flask(__name__)
 
-@app.route("/")
+@app.route('/')
 def home():
-    return render_template("index.html")
+    return render_template('index.html')
+
+@app.route('/chart')
+def chart():
+    return render_template('chart.html')
+
+@app.route('/report')
+def report():
+    return render_template('research.html')
+
 
 @app.route('/upload', methods=['POST'])
 def upload():
