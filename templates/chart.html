@@ -219,6 +219,10 @@
       }
 
       resultDiv.innerText = `✅ ${result.message}\n업로드된 파일: ${result.files.join(', ')}`;
+      // ✅ 업로드 후 1초 후 /chart로 이동
+    setTimeout(() => {
+    window.location.href = "/chart";
+    }, 1000);
 
       // 서버에서 받은 preview 데이터로 차트 준비
       jsonData = result.preview;
