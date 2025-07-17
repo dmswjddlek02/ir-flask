@@ -179,193 +179,173 @@
   <canvas id="myChart" width="700" height="400" style="margin-top: 2rem;"></canvas>
 
   <script>
-    const topButtons = document.getElementById('topButtons');
-    const container1 = document.getElementById('container1');
-    const container2 = document.getElementById('container2');
-    const uploadForm = document.getElementById("upload-form");
-    const uploadInput = document.getElementById("file-input");
-    const resultDiv = document.getElementById("result");
-    const xSelect = document.getElementById("x-col");
-    const ySelect = document.getElementById("y-col");
-    const legendSelect = document.getElementById("legend-col");
-    const chartTypeSelect = document.getElementById("chart-type");
-    const chartCanvas = document.getElementById("myChart");
+  const uploadForm = document.getElementById("upload-form");
+  const fileInput = document.getElementById("file-input");
+  const resultDiv = document.getElementById("result");
+  const xSelect = document.getElementById("x-col");
+  const ySelect = document.getElementById("y-col");
+  const legendSelect = document.getElementById("legend-col");
+  const chartTypeSelect = document.getElementById("chart-type");
+  const chartCanvas = document.getElementById("myChart");
 
-    let jsonData = [];
-    let myChart;
+  let jsonData = [];
+  let myChart;
 
-    function openContainer(id) {
-      topButtons.classList.add('hidden');
-      container1.classList.remove('active');
-      container2.classList.remove('active');
-      document.getElementById(id).classList.add('active');
+  // 1. 업로드 이벤트 처리
+  uploadForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const files = fileInput.files;
+    if (files.length === 0) {
+      alert("업로드할 파일을 선택하세요!");
+      return;
     }
 
-    function closeContainers() {
-      container1.classList.remove('active');
-      container2.classList.remove('active');
-      topButtons.classList.remove('hidden');
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+      formData.append("files", files[i]);
     }
 
-    uploadForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const files = uploadInput.files;
-      if (files.length === 0) {
-        alert("업로드할 파일을 선택하세요!");
+    try {
+      const response = await fetch('/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.error) {
+        resultDiv.innerText = "❌ 서버 오류: " + result.error;
         return;
       }
 
-      const formData = new FormData();
-      for (let i = 0; i < files.length; i++) {
-        formData.append("files", files[i]);
-      }
+      resultDiv.innerText = `✅ ${result.message}\n업로드된 파일: ${result.files.join(', ')}`;
 
-      try {
-        const response = await fetch('http://localhost:5000/upload', {
-          method: 'POST',
-          body: formData
+      // 서버에서 받은 preview 데이터로 차트 준비
+      jsonData = result.preview;
+      if (jsonData.length > 0) {
+        const columns = Object.keys(jsonData[0]);
+
+        [xSelect, ySelect].forEach(select => {
+          select.innerHTML = "";
+          columns.forEach(col => select.appendChild(new Option(col, col)));
         });
 
-        const result = await response.json();
-        resultDiv.innerText = `✅ ${result.message}\n업로드된 파일: ${result.files.join(', ')}`;
-        if (result.files.length > 0) {
-          fetchExcelAndRender(result.files[0]);
-        }
-      } catch (error) {
-        resultDiv.innerText = "❌ 서버 연결 실패: " + error.message;
+        legendSelect.innerHTML = '<option value="">선택 안함</option>';
+        columns.forEach(col => legendSelect.appendChild(new Option(col, col)));
+
+        drawChart();
       }
-    });
 
-    function fetchExcelAndRender(filename) {
-      fetch(`http://localhost:5000/files/${filename}`)
-        .then(res => {
-          if (!res.ok) throw new Error("파일 다운로드 실패");
-          return res.arrayBuffer();
-        })
-        .then(buffer => {
-          const data = new Uint8Array(buffer);
-          const workbook = XLSX.read(data, { type: "array" });
-          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-          jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-          const columns = Object.keys(jsonData[0]);
-
-          [xSelect, ySelect].forEach(select => {
-            select.innerHTML = "";
-            columns.forEach(col => select.appendChild(new Option(col, col)));
-          });
-
-          legendSelect.innerHTML = '<option value="">선택 안함</option>';
-          columns.forEach(col => legendSelect.appendChild(new Option(col, col)));
-
-          drawChart();
-        })
-        .catch(err => alert("파일 처리 중 오류 발생: " + err.message));
+    } catch (error) {
+      resultDiv.innerText = "❌ 서버 연결 실패: " + error.message;
     }
+  });
 
-    [xSelect, ySelect, legendSelect, chartTypeSelect].forEach(sel => {
-      sel.addEventListener("change", drawChart);
-    });
+  // 2. 드롭다운 변경 시 차트 다시 그림
+  [xSelect, ySelect, legendSelect, chartTypeSelect].forEach(sel => {
+    sel.addEventListener("change", drawChart);
+  });
 
-    function drawChart() {
-      if (!jsonData.length) return;
+  // 3. 차트 그리기 함수
+  function drawChart() {
+    if (!jsonData.length) return;
 
-      const xCol = xSelect.value;
-      const yCol = ySelect.value;
-      const legendCol = legendSelect.value;
-      const chartType = chartTypeSelect.value;
-      const isStacked = chartType === "stacked-bar";
-      const isLegendUsed = legendCol !== "";
+    const xCol = xSelect.value;
+    const yCol = ySelect.value;
+    const legendCol = legendSelect.value;
+    const chartType = chartTypeSelect.value;
+    const isStacked = chartType === "stacked-bar";
+    const isLegendUsed = legendCol !== "";
 
-      const xSet = new Set();
-      const grouped = {};
-      const colors = ["#4dc9f6", "#f67019", "#f53794", "#537bc4", "#acc236", "#166a8f", "#ff6384"];
+    const xSet = new Set();
+    const grouped = {};
+    const colors = ["#4dc9f6", "#f67019", "#f53794", "#537bc4", "#acc236", "#166a8f", "#ff6384"];
 
-      if (isLegendUsed) {
-        const legendSet = new Set();
-        jsonData.forEach(row => {
-          const x = row[xCol];
-          const legend = row[legendCol];
-          const y = Number(row[yCol]) || 0;
+    if (isLegendUsed) {
+      const legendSet = new Set();
+      jsonData.forEach(row => {
+        const x = row[xCol];
+        const legend = row[legendCol];
+        const y = Number(row[yCol]) || 0;
 
-          xSet.add(x);
-          legendSet.add(legend);
+        xSet.add(x);
+        legendSet.add(legend);
 
-          if (!grouped[legend]) grouped[legend] = {};
-          grouped[legend][x] = (grouped[legend][x] || 0) + y;
-        });
+        if (!grouped[legend]) grouped[legend] = {};
+        grouped[legend][x] = (grouped[legend][x] || 0) + y;
+      });
 
-        const xLabels = Array.from(xSet);
-        const legends = Array.from(legendSet);
+      const xLabels = Array.from(xSet);
+      const legends = Array.from(legendSet);
 
-        const datasets = legends.map((legend, i) => ({
-          label: legend,
-          data: xLabels.map(x => grouped[legend][x] || 0),
-          backgroundColor: colors[i % colors.length],
-          borderColor: colors[i % colors.length],
-          fill: chartType !== 'line',
-          ...(isStacked && { stack: 'stack1' })
-        }));
+      const datasets = legends.map((legend, i) => ({
+        label: legend,
+        data: xLabels.map(x => grouped[legend][x] || 0),
+        backgroundColor: colors[i % colors.length],
+        borderColor: colors[i % colors.length],
+        fill: chartType !== 'line',
+        ...(isStacked && { stack: 'stack1' })
+      }));
 
-        renderChart(chartType === 'stacked-bar' ? 'bar' : chartType, xLabels, datasets, isStacked);
+      renderChart(chartType === 'stacked-bar' ? 'bar' : chartType, xLabels, datasets, isStacked);
 
-      } else {
-        jsonData.forEach(row => {
-          const x = row[xCol];
-          const y = Number(row[yCol]) || 0;
-          xSet.add(x);
-          grouped[x] = (grouped[x] || 0) + y;
-        });
+    } else {
+      jsonData.forEach(row => {
+        const x = row[xCol];
+        const y = Number(row[yCol]) || 0;
+        xSet.add(x);
+        grouped[x] = (grouped[x] || 0) + y;
+      });
 
-        const xLabels = Array.from(xSet);
-        const dataset = [{
-          label: yCol,
-          data: xLabels.map(x => grouped[x]),
-          backgroundColor: 'skyblue',
-          borderColor: 'skyblue',
-          fill: chartType !== 'line'
-        }];
+      const xLabels = Array.from(xSet);
+      const dataset = [{
+        label: yCol,
+        data: xLabels.map(x => grouped[x]),
+        backgroundColor: 'skyblue',
+        borderColor: 'skyblue',
+        fill: chartType !== 'line'
+      }];
 
-        renderChart(chartType === 'stacked-bar' ? 'bar' : chartType, xLabels, dataset, false);
-      }
+      renderChart(chartType === 'stacked-bar' ? 'bar' : chartType, xLabels, dataset, false);
     }
+  }
 
-    function renderChart(type, labels, datasets, stacked) {
-      if (myChart) myChart.destroy();
-      const ctx = chartCanvas.getContext("2d");
-      myChart = new Chart(ctx, {
-        type,
-        data: { labels, datasets },
-        options: {
-          responsive: false,
-          plugins: {
-            title: {
-              display: true,
-              text: "차트 미리보기"
-            },
-            legend: {
-              display: true,
-              position: 'top'
+  function renderChart(type, labels, datasets, stacked) {
+    if (myChart) myChart.destroy();
+    const ctx = chartCanvas.getContext("2d");
+    myChart = new Chart(ctx, {
+      type,
+      data: { labels, datasets },
+      options: {
+        responsive: false,
+        plugins: {
+          title: {
+            display: true,
+            text: "차트 미리보기"
+          },
+          legend: {
+            display: true,
+            position: 'top'
+          }
+        },
+        scales: {
+          x: {
+            stacked: stacked,
+            offset: true,
+            categoryPercentage: stacked ? 0.8 : 0.6,
+            barPercentage: stacked ? 1.0 : 0.9,
+            ticks: {
+              align: 'center'
             }
           },
-          scales: {
-            x: {
-              stacked: stacked,
-              offset: true,
-              categoryPercentage: stacked ? 0.8 : 0.6,
-              barPercentage: stacked ? 1.0 : 0.9,
-              ticks: {
-                align: 'center'
-              }
-            },
-            y: {
-              stacked: stacked,
-              beginAtZero: true
-            }
+          y: {
+            stacked: stacked,
+            beginAtZero: true
           }
         }
-      });
-    }
-  </script>
+      }
+    });
+  }
+</script>
 </body>
 </html>
