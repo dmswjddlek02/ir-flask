@@ -4,58 +4,48 @@
   <meta charset="UTF-8">
   <title>IR 보고서 추천</title>
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      // 1. 컬럼명 리스트 (더미 데이터)
-      const columnNames = ["name", "age", "major", "충원율", "졸업률", "입학자수", "정원", "전임교원수"];
+let columnNames = [];
 
-      // 2. 추천 보고서 매핑 규칙
-      const reportRules = [
-        {
-          name: "신입생 충원율 보고서",
-          required: ["입학자수", "정원"]
-        },
-        {
-          name: "졸업률 비교 보고서",
-          required: ["졸업률", "학과"]
-        },
-        {
-          name: "전임교원 확보율 보고서",
-          required: ["전임교원수", "정원"]
-        }
-      ];
+document.addEventListener("DOMContentLoaded", () => {
+  const searchInput = document.getElementById("search");
+  const resultDiv = document.getElementById("result");
+  const reportDiv = document.getElementById("report");
 
-      const searchInput = document.getElementById("search");
-      const resultDiv = document.getElementById("result");
-      const reportDiv = document.getElementById("report");
-
-      searchInput.addEventListener("input", () => {
-        const keyword = searchInput.value.trim();
-        const matches = columnNames.filter(col => col.includes(keyword));
-
-        // 3. 컬럼명 결과 표시
-        if (matches.length > 0) {
-            resultDiv.innerHTML = "<ul>" + matches.map(m => {
-            return `<li style="cursor: pointer; color: blue;" onclick="document.getElementById('search').value='${m}'; document.getElementById('search').dispatchEvent(new Event('input'));">📌 ${m}</li>`;
-            }).join("") + "</ul>";
-        } else {
-          resultDiv.innerHTML = "❌ 일치하는 컬럼이 없어요.";
-        }
-
-        // 4. 추천 보고서 판단
-        const matchedReports = reportRules.filter(rule =>
-          rule.required.every(req => columnNames.includes(req))
-        );
-
-        if (matchedReports.length > 0) {
-          reportDiv.innerHTML = "<strong>📄 추천 가능한 보고서:</strong><ul>" +
-            matchedReports.map(r => `<li>✅ ${r.name}</li>`).join("") +
-            "</ul>";
-        } else {
-          reportDiv.innerHTML = "📝 조건에 맞는 보고서가 없습니다.";
-        }
-      });
+  // ✅ 1. 실시간 컬럼 받아오기
+  fetch('/columns')
+    .then(res => res.json())
+    .then(data => {
+      columnNames = data.columns || [];
     });
-  </script>
+
+  // ✅ 2. 검색 기능
+  searchInput.addEventListener("input", () => {
+    const keyword = searchInput.value.trim();
+    const matches = columnNames.filter(col => col.includes(keyword));
+
+    if (matches.length > 0) {
+      resultDiv.innerHTML = "<ul>" + matches.map(m => {
+        return `<li style="cursor: pointer; color: blue;" onclick="document.getElementById('search').value='${m}'; document.getElementById('search').dispatchEvent(new Event('input'));">📌 ${m}</li>`;
+      }).join("") + "</ul>";
+    } else {
+      resultDiv.innerHTML = "❌ 일치하는 컬럼이 없어요.";
+    }
+
+    const matchedReports = reportRules.filter(rule =>
+      rule.required.every(req => columnNames.includes(req))
+    );
+
+    if (matchedReports.length > 0) {
+      reportDiv.innerHTML = "<strong>📄 추천 가능한 보고서:</strong><ul>" +
+        matchedReports.map(r => `<li>✅ ${r.name}</li>`).join("") +
+        "</ul>";
+    } else {
+      reportDiv.innerHTML = "📝 조건에 맞는 보고서가 없습니다.";
+    }
+  });
+});
+</script>
+
 </head>
 <body style="padding: 2rem; font-family: Arial;">
   <h1 style="font-size: 24px;">🔍 IR 컬럼 검색 & 보고서 추천</h1>
