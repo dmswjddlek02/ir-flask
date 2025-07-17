@@ -50,6 +50,9 @@
 
       const result = await response.json();
       resultDiv.innerText = `✅ ${result.message}\n업로드된 파일: ${result.files.join(', ')}`;
+      setTimeout(() => {
+      window.location.href = "/chart";
+      }, 1000);
     } catch (error) {
       resultDiv.innerText = "❌ 서버 연결 실패: " + error.message;
     }

@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>IR센터 차트 시각화</title>
+  <title>범례 선택 + 차트 유형 통합</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -46,9 +46,10 @@
       gap: 10px;
       padding: 10px;
       background-color: #e0e0e0;
+      /* 높이 정렬 상단 고정 */
       align-items: flex-start;
       justify-content: flex-start;
-      margin-top: 10px;
+      margin-top: 10px; /* 상단 버튼과 높이 일치 */
     }
 
     .button-panel button {
@@ -78,83 +79,42 @@
       cursor: pointer;
     }
 
-    body {
-      padding: 2rem;
-      font-family: 'Noto Sans KR', sans-serif;
-      background-color: #f9f9f9;
-      color: #333;
-    }
+  body {
+    padding: 2rem;
+    font-family: 'Noto Sans KR', sans-serif;
+    background-color: #f9f9f9;
+    color: #333;
+  }
+  h2 {
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    color: #222;
+  }
+  select, input[type="file"] {
+    font-size: 1rem;
+    padding: 0.4rem 0.6rem;
+    margin-right: 1rem;
+    margin-top: 0.5rem;
+  }
+  label {
+    font-weight: bold;
+    margin-right: 0.3rem;
+  }
+  canvas {
+    background-color: white;
+    border: 1px solid #ddd;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    margin-top: 2rem;
+  }
+</style>
 
-    h2 {
-      margin-bottom: 1rem;
-      font-size: 1.5rem;
-      color: #222;
-    }
-
-    select {
-      font-size: 1rem;
-      padding: 0.4rem 0.6rem;
-      margin-right: 1rem;
-      margin-top: 0.5rem;
-    }
-
-    label {
-      font-weight: bold;
-      margin-right: 0.3rem;
-    }
-
-    canvas {
-      background-color: white;
-      border: 1px solid #ddd;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      margin-top: 2rem;
-    }
-  </style>
 </head>
 
-<body>
-  <!-- 상단 고정 버튼 -->
-  <div class="top-buttons" id="topButtons">
-    <button onclick="openContainer('container1')">1</button>
-    <button onclick="openContainer('container2')">2</button>
-  </div>
 
-  <!-- 1번 컨테이너 -->
-  <div class="side-wrapper" id="container1">
-    <div class="button-panel">
-      <button onclick="openContainer('container1')">1</button>
-      <button onclick="openContainer('container2')">2</button>
-    </div>
-    <div class="side-container">
-      <button class="close-btn" onclick="closeContainers()">×</button>
-      <h3>1번 컨테이너 내용</h3>
-      <p>이곳은 1번 컨테이너입니다.</p>
-    </div>
-  </div>
 
-  <!-- 2번 컨테이너: 업로드 기능 -->
-  <div class="side-wrapper" id="container2">
-    <div class="button-panel">
-      <button onclick="openContainer('container1')">1</button>
-      <button onclick="openContainer('container2')">2</button>
-    </div>
-    <div class="side-container">
-      <button class="close-btn" onclick="closeContainers()">×</button>
-      <h3 style="font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem;">📤 엑셀 파일 업로드</h3>
-      <form id="upload-form" style="display: flex; flex-direction: column; gap: 10px;">
-        <input type="file" id="file-input" multiple accept=".xlsx,.xls,.csv"
-          style="padding: 10px; border: 1px solid #ccc; border-radius: 5px;" />
-        <button type="submit"
-          style="padding: 10px; background-color: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer;">
-          업로드
-        </button>
-      </form>
-      <div id="result" style="margin-top: 10px; color: green; font-weight: bold;"></div>
-    </div>
-  </div>
-
-  <!-- 메인 차트 구성 -->
+<body style="padding:2rem; font-family:sans-serif;">
   <h2>📊 차트 만들기 (범례 선택 + 차트 유형)</h2>
+  <input type="file" id="excel-file" accept=".xlsx,.xls" />
 
   <div style="margin-top: 1rem;">
     <label>X축 컬럼:</label>
@@ -165,7 +125,7 @@
 
     <label style="margin-left:1rem;">범례 컬럼:</label>
     <select id="legend-col">
-      <option value="">선택 안함</option>
+      <option value="">선택 안함</option> <!-- ✅ 디폴트 -->
     </select>
 
     <label style="margin-left:1rem;">차트 유형:</label>
@@ -173,60 +133,161 @@
       <option value="bar">막대 그래프</option>
       <option value="stacked-bar">스택형 막대</option>
       <option value="line">선 그래프</option>
+
     </select>
   </div>
 
   <canvas id="myChart" width="700" height="400" style="margin-top: 2rem;"></canvas>
 
   <script>
-  const uploadForm = document.getElementById("upload-form");
-  const fileInput = document.getElementById("file-input");
-  const resultDiv = document.getElementById("result");
-  const xSelect = document.getElementById("x-col");
-  const ySelect = document.getElementById("y-col");
-  const legendSelect = document.getElementById("legend-col");
-  const chartTypeSelect = document.getElementById("chart-type");
-  const chartCanvas = document.getElementById("myChart");
+    const topButtons = document.getElementById('topButtons');
+    const container1 = document.getElementById('container1');
+    const container2 = document.getElementById('container2');
 
-  let jsonData = [];
-  let myChart;
-
-  // 1. 업로드 이벤트 처리
-  uploadForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const files = fileInput.files;
-    if (files.length === 0) {
-      alert("업로드할 파일을 선택하세요!");
-      return;
+    function openContainer(id) {
+      topButtons.classList.add('hidden');
+      container1.classList.remove('active');
+      container2.classList.remove('active');
+      document.getElementById(id).classList.add('active');
     }
 
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append("files", files[i]);
+    function closeContainers() {
+      container1.classList.remove('active');
+      container2.classList.remove('active');
+      topButtons.classList.remove('hidden');
     }
 
-    try {
-      const response = await fetch('/upload', {
-        method: 'POST',
-        body: formData
-      });
+    const fileInput = document.getElementById("excel-file");
+    const xSelect = document.getElementById("x-col");
+    const ySelect = document.getElementById("y-col");
+    const legendSelect = document.getElementById("legend-col");
+    const chartTypeSelect = document.getElementById("chart-type");
+    const chartCanvas = document.getElementById("myChart");
+    let jsonData = [];
+    let myChart;
 
-      const result = await response.json();
+    function drawChart() {
+      if (!jsonData.length) return;
 
-      if (result.error) {
-        resultDiv.innerText = "❌ 서버 오류: " + result.error;
-        return;
+      const xCol = xSelect.value;
+      const yCol = ySelect.value;
+      const legendCol = legendSelect.value;
+      const chartType = chartTypeSelect.value;
+      const isStacked = chartType === "stacked-bar";
+      const isLegendUsed = legendCol !== "";
+
+      const xSet = new Set();
+      const grouped = {};
+      const colors = ["#4dc9f6", "#f67019", "#f53794", "#537bc4", "#acc236", "#166a8f", "#ff6384"];
+
+      if (isLegendUsed) {
+        const legendSet = new Set();
+
+        // ✅ 범례 기준 그룹핑
+        jsonData.forEach(row => {
+          const x = row[xCol];
+          const legend = row[legendCol];
+          const y = Number(row[yCol]) || 0;
+
+          xSet.add(x);
+          legendSet.add(legend);
+
+          if (!grouped[legend]) grouped[legend] = {};
+          grouped[legend][x] = (grouped[legend][x] || 0) + y;
+        });
+
+        const xLabels = Array.from(xSet);
+        const legends = Array.from(legendSet);
+
+        const datasets = legends.map((legend, i) => {
+        const dataset = {
+        label: legend,
+        data: xLabels.map(x => grouped[legend][x] || 0),
+        backgroundColor: colors[i % colors.length],
+        borderColor: colors[i % colors.length],
+        fill: chartType !== 'line'
+    };
+    if (isStacked) {
+        dataset.stack = 'stack1';
+    }
+  return dataset;
+});
+
+
+        renderChart(chartType === 'stacked-bar' ? 'bar' : chartType, xLabels, datasets, isStacked);
+
+      } else {
+        // ✅ 범례 없을 때 (단일 컬럼 기준)
+        jsonData.forEach(row => {
+          const x = row[xCol];
+          const y = Number(row[yCol]) || 0;
+          xSet.add(x);
+          grouped[x] = (grouped[x] || 0) + y;
+        });
+
+        const xLabels = Array.from(xSet);
+        const dataset = [{
+          label: yCol,
+          data: xLabels.map(x => grouped[x]),
+          backgroundColor: 'skyblue',
+          borderColor: 'skyblue',
+          fill: chartType !== 'line'
+        }];
+
+        renderChart(chartType === 'stacked-bar' ? 'bar' : chartType, xLabels, dataset, false);
       }
+    }
 
-      resultDiv.innerText = `✅ ${result.message}\n업로드된 파일: ${result.files.join(', ')}`;
-      // ✅ 업로드 후 1초 후 /chart로 이동
-    setTimeout(() => {
-    window.location.href = "/chart";
-    }, 1000);
+    function renderChart(type, labels, datasets, stacked) {
+      if (myChart) myChart.destroy();
+      const ctx = chartCanvas.getContext("2d");
+      myChart = new Chart(ctx, {
+        type,
+        data: { labels, datasets },
+        options: {
+          responsive: false,
+          plugins: {
+            title: {
+              display: true,
+              text: "차트 미리보기"
+            },
+            legend: {
+              display: true,
+              position: 'top'
+            }
+          },
+        scales: {
+  x: {
+    stacked: stacked,
+    offset: true,  // ✅ 중심 정렬
+    categoryPercentage: stacked ? 0.8 : 0.6,
+    barPercentage: stacked ? 1.0 : 0.9,
+    ticks: {
+      align: 'center'
+    }
+  },
+  y: {
+    stacked: stacked,
+    beginAtZero: true
+  }
+}
 
-      // 서버에서 받은 preview 데이터로 차트 준비
-      jsonData = result.preview;
-      if (jsonData.length > 0) {
+
+        }
+      });
+    }
+
+    // ✅ 엑셀 업로드
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        jsonData = XLSX.utils.sheet_to_json(worksheet);
+
         const columns = Object.keys(jsonData[0]);
 
         [xSelect, ySelect].forEach(select => {
@@ -234,122 +295,20 @@
           columns.forEach(col => select.appendChild(new Option(col, col)));
         });
 
+        // 범례: "선택 안함" 유지한 채로 컬럼만 추가
         legendSelect.innerHTML = '<option value="">선택 안함</option>';
         columns.forEach(col => legendSelect.appendChild(new Option(col, col)));
 
         drawChart();
-      }
+      };
 
-    } catch (error) {
-      resultDiv.innerText = "❌ 서버 연결 실패: " + error.message;
-    }
-  });
-
-  // 2. 드롭다운 변경 시 차트 다시 그림
-  [xSelect, ySelect, legendSelect, chartTypeSelect].forEach(sel => {
-    sel.addEventListener("change", drawChart);
-  });
-
-  // 3. 차트 그리기 함수
-  function drawChart() {
-    if (!jsonData.length) return;
-
-    const xCol = xSelect.value;
-    const yCol = ySelect.value;
-    const legendCol = legendSelect.value;
-    const chartType = chartTypeSelect.value;
-    const isStacked = chartType === "stacked-bar";
-    const isLegendUsed = legendCol !== "";
-
-    const xSet = new Set();
-    const grouped = {};
-    const colors = ["#4dc9f6", "#f67019", "#f53794", "#537bc4", "#acc236", "#166a8f", "#ff6384"];
-
-    if (isLegendUsed) {
-      const legendSet = new Set();
-      jsonData.forEach(row => {
-        const x = row[xCol];
-        const legend = row[legendCol];
-        const y = Number(row[yCol]) || 0;
-
-        xSet.add(x);
-        legendSet.add(legend);
-
-        if (!grouped[legend]) grouped[legend] = {};
-        grouped[legend][x] = (grouped[legend][x] || 0) + y;
-      });
-
-      const xLabels = Array.from(xSet);
-      const legends = Array.from(legendSet);
-
-      const datasets = legends.map((legend, i) => ({
-        label: legend,
-        data: xLabels.map(x => grouped[legend][x] || 0),
-        backgroundColor: colors[i % colors.length],
-        borderColor: colors[i % colors.length],
-        fill: chartType !== 'line',
-        ...(isStacked && { stack: 'stack1' })
-      }));
-
-      renderChart(chartType === 'stacked-bar' ? 'bar' : chartType, xLabels, datasets, isStacked);
-
-    } else {
-      jsonData.forEach(row => {
-        const x = row[xCol];
-        const y = Number(row[yCol]) || 0;
-        xSet.add(x);
-        grouped[x] = (grouped[x] || 0) + y;
-      });
-
-      const xLabels = Array.from(xSet);
-      const dataset = [{
-        label: yCol,
-        data: xLabels.map(x => grouped[x]),
-        backgroundColor: 'skyblue',
-        borderColor: 'skyblue',
-        fill: chartType !== 'line'
-      }];
-
-      renderChart(chartType === 'stacked-bar' ? 'bar' : chartType, xLabels, dataset, false);
-    }
-  }
-
-  function renderChart(type, labels, datasets, stacked) {
-    if (myChart) myChart.destroy();
-    const ctx = chartCanvas.getContext("2d");
-    myChart = new Chart(ctx, {
-      type,
-      data: { labels, datasets },
-      options: {
-        responsive: false,
-        plugins: {
-          title: {
-            display: true,
-            text: "차트 미리보기"
-          },
-          legend: {
-            display: true,
-            position: 'top'
-          }
-        },
-        scales: {
-          x: {
-            stacked: stacked,
-            offset: true,
-            categoryPercentage: stacked ? 0.8 : 0.6,
-            barPercentage: stacked ? 1.0 : 0.9,
-            ticks: {
-              align: 'center'
-            }
-          },
-          y: {
-            stacked: stacked,
-            beginAtZero: true
-          }
-        }
-      }
+      reader.readAsArrayBuffer(file);
     });
-  }
-</script>
+
+    // ✅ 실시간 반영
+    [xSelect, ySelect, legendSelect, chartTypeSelect].forEach(sel => {
+      sel.addEventListener("change", drawChart);
+    });
+  </script>
 </body>
 </html>
