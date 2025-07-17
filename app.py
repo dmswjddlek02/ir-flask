@@ -22,16 +22,28 @@ def upload():
 
         for f in files:
             df = pd.read_excel(f)
-            dfs.append(df)
-            filenames.append(f.filename)
+            if not df.empty:
+                dfs.append(df)
+                filenames.append(f.filename)
+
+        if not dfs:
+            return jsonify({"error": "업로드된 파일 중 유효한 데이터가 없습니다."}), 400
 
         combined = pd.concat(dfs, ignore_index=True)
+
+        # 날짜형 컬럼 문자열로 변환
+        for col in combined.select_dtypes(include=['datetime']):
+            combined[col] = combined[col].astype(str)
+
+        # NaN/NaT 처리
+        combined = combined.fillna('')
 
         return jsonify({
             "message": "업로드 성공!",
             "files": filenames,
             "preview": combined.head(10).to_dict(orient='records')
         })
+
     except Exception as e:
         return jsonify({"error": f"서버 오류: {str(e)}"}), 500
 
